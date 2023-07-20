@@ -134,7 +134,7 @@ async def post_init(application: Application):
 async def generic_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     command = update.effective_message.text[1:].split("@")[0]
     if command in MENSAS:  # type: ignore
-        await mensa_helpers.mensa_menu(command, update, context)
+        await mensa_menu(command, update, context)
         return
 
     logging.info(
