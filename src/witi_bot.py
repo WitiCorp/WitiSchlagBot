@@ -204,6 +204,13 @@ async def prompt_openai(
             + "Please try again later.",
         )
 
+    except openai.error.RateLimitError:
+        await context.bot.send_message(
+            chat_id=response_chat_id,
+            text="I'm sorry, I'm poor and have reached my rate limit. "
+            + "Please try again later.",
+        )
+
 
 async def summarize(update: Update, context: ContextTypes.DEFAULT_TYPE):
     response_chat_id = update.effective_user.id
