@@ -210,6 +210,8 @@ async def prompt_openai(
             text="I'm sorry, I'm poor and have reached my rate limit. "
             + "Please try again later.",
         )
+        
+    return False, ""
 
 
 async def summarize(update: Update, context: ContextTypes.DEFAULT_TYPE):
