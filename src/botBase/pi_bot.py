@@ -14,6 +14,22 @@ from urllib3.exceptions import HTTPError
 DEVELOPER_CHAT_ID = 631157495
 IGNORED_ERRORS = [NetworkError, HTTPError]
 
+async def shutdown(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Gracefully shutdown the bot when the command /shutdown is issued by the developer."""
+    if update.effective_chat.id != DEVELOPER_CHAT_ID:  # type: ignore
+        return
+
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,  # type: ignore
+        text="Shutting down...",
+        parse_mode=ParseMode.HTML,
+    )
+    logging.info(
+        f"Shutting down {update.effective_chat.title} "  # type: ignore
+        f"({update.effective_chat.id})",  # type: ignore
+    )
+    await context.bot.close()
+
 
 def generate_logs(log_fh):
     def match_date(line):
@@ -156,6 +172,7 @@ def start_bot(
     application = ApplicationBuilder().token(token).post_init(post_init).build()
 
     application.add_handler(CommandHandler("log", partial(fetch_log, log_file)))
+    application.add_handler(CommandHandler("shutdown", shutdown))
     application.add_handlers(handlers)
     application.add_error_handler(error_handler)
 
