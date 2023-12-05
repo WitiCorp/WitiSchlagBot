@@ -6,15 +6,21 @@ import re
 import datetime
 from functools import partial
 from telegram import Update
-from telegram.ext import ContextTypes, ApplicationBuilder, CommandHandler, Application
+from telegram.ext import ContextTypes, ApplicationBuilder, CommandHandler, Updater
 from telegram.constants import ParseMode
 from telegram.error import NetworkError, BadRequest
 from urllib3.exceptions import HTTPError
+import os
+import signal
 
 DEVELOPER_CHAT_ID = 631157495
 IGNORED_ERRORS = [NetworkError, HTTPError]
 
-async def shutdown(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+
+# Terminate this script
+async def shutdown_cmd(
+    updater: Updater, update: object, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Gracefully shutdown the bot when the command /shutdown is issued by the developer."""
     if update.effective_chat.id != DEVELOPER_CHAT_ID:  # type: ignore
         return
@@ -28,7 +34,8 @@ async def shutdown(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
         f"Shutting down {update.effective_chat.title} "  # type: ignore
         f"({update.effective_chat.id})",  # type: ignore
     )
-    await context.bot.close()
+
+    os.kill(os.getpid(), signal.SIGINT)
 
 
 def generate_logs(log_fh):
@@ -121,7 +128,6 @@ async def fetch_log(
                     parse_mode=ParseMode.HTML,
                 )
 
-
     logging.info(
         f"Sent log for {logfile} to {update.effective_chat.title} "  # type: ignore
         f"({update.effective_chat.id})",  # type: ignore
@@ -155,7 +161,7 @@ def start_bot(
     commands: list,
     log_file: str,
     token: str,
-    post_init: callable, # type: ignore
+    post_init: callable,  # type: ignore
     handlers: list,
 ):
     logging.basicConfig(
@@ -170,9 +176,11 @@ def start_bot(
     logging.info(f"Registered commands:\n{commands}")
 
     application = ApplicationBuilder().token(token).post_init(post_init).build()
+    updater = application.updater
+    assert updater is not None
 
     application.add_handler(CommandHandler("log", partial(fetch_log, log_file)))
-    application.add_handler(CommandHandler("shutdown", shutdown))
+    application.add_handler(CommandHandler("shutdown", partial(shutdown_cmd, updater)))
     application.add_handlers(handlers)
     application.add_error_handler(error_handler)
 
