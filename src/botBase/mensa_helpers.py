@@ -108,6 +108,7 @@ class ETHMensa(Mensa):
                         menu.price_extern = meal["prices"]["extern"]
                         menu.description = meal["description"]
                         menus.append(menu)
+
             return menus
         except Exception as e:
             print(e)
@@ -116,18 +117,31 @@ class ETHMensa(Mensa):
 
 class UniMensa(Mensa):
     api_name = ""  # the name used on the UNI website (has to be defined by the inheriting class)
-
-    tage = [
-        "montag",
-        "dienstag",
-        "mittwoch",
-        "donnerstag",
-        "freitag",
-        "samstag",
-        "sonntag",
-    ]
+    image = False
 
     def get_meals(self):
+        if (self.image):
+            mealtime = (
+                "lunch" if datetime.datetime.now().hour < MEALTIME_SWITCH else "dinner"
+            )
+            url = "https://app.food2050.ch/{}/menu/{}/weekly/pdf".format(
+                self.api_name, mealtime
+            )
+
+            try:
+                with urllib.request.urlopen(url) as request:
+                    raw_data = request.read().decode("utf8")
+
+                soup = BeautifulSoup(raw_data, "html.parser")
+
+                # the url is saved in a iframe within a div within a div within the body. There is only one of each at each step
+                url = soup.body.div.div.iframe["src"]
+                return url
+            except Exception as e:
+                print(e)
+
+            return []
+
         day = self.tage[datetime.datetime.today().weekday()]  # current day
         url = "https://www.mensa.uzh.ch/de/menueplaene/{}/{}.html".format(
             self.api_name, day
@@ -267,30 +281,27 @@ class Raemi59(UniMensa):
 class UZHMercato(UniMensa):
     aliases = ["uniunten", "mercato", "uni-unten", "uni unten"]
     name = "UZH Mercato"
-    api_name = "zentrum-mercato"
-
-
-class UZHMercatoAbend(UniMensa):
-    aliases = ["uniuntenabend", "mercato abend", "uni-unten-abend", "uni unten abend"]
-    name = "UZH Mercato"
-    api_name = "zentrum-mercato-abend"
+    api_name = "uzh-zentrum/untere_mensa"
+    image = True
 
 
 class UZHZentrum(UniMensa):
     aliases = ["unioben", "zentrum", "uni", "uzh zentrum", "uzhzentrum"]
     name = "UZH Zentrum"
-    api_name = "zentrum-mensa"
+    api_name = "uzh-zentrum/obere_mensa"
+    image = True
 
 
 class UZHZentrumAllgemein(UniMensa):
     aliases = ["uni"]
     name = "UZH Zentrum"
+    image = True
 
     def get_meals(self):
         if datetime.datetime.now().hour < MEALTIME_SWITCH:
-            self.api_name = "zentrum-mensa"
+            self.api_name = "uzh-zentrum/obere_mensa"
         else:
-            self.api_name = "zentrum-mercato-abend"
+            self.api_name = "uzh-zentrum/untere_mensa"
         return super().get_meals()
 
 

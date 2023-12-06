@@ -49,6 +49,15 @@ def load_favorite_pickle():
 async def mensa_menu(mensa, update, context):
     mensa = mensa_helpers.get_mensa(mensa)
     meals = mensa.get_meals()
+    if (isinstance(meals, str)):
+        await context.bot.send_photo(
+            chat_id=update.effective_chat.id,
+            photo=meals,
+        )
+        logging.info(
+            f"Sent menu for {mensa.name} to {update.effective_chat.title} as image"
+            + f"with id {update.effective_chat.id}"
+        )
     if len(meals) == 0:
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
