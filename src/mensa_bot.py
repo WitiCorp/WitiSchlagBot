@@ -25,11 +25,10 @@ BOT_TOKEN_FILE = "WitiGrailleBotFiles/TOKEN.token"
 FAVORITES_FILE = "WitiGrailleBotFiles/favorite_mensas.pickle"
 DEVELOPER_CHAT_ID = 631157495
 ERRORS_TO_LOG = []
-MENSAS = [mensa.aliases[0] for mensa in mensa_helpers.available]
+MENSAS = [mensa.alias for mensa in mensa_helpers.available]
 FAVORITE_MENSAS = {}
 FAVORITE_TIME = time(9, 00, tzinfo=pytz.timezone("Europe/Zurich"))
 TIMES = ["11:30", "11:45", "12:00", "12:15", "12:30", "12:45", "13:00"]
-
 
 def update_favorite_pickle():
     global FAVORITE_MENSAS
