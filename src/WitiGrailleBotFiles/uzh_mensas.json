@@ -1,0 +1,72 @@
+[
+    {
+        "name": "UZH Plattenstrasse",
+        "alias": "platte",
+        "api_name": "cafeteria-uzh-plattenstrasse"
+    },
+    {
+        "name": "UZH Rämi 59",
+        "alias": "raemi",
+        "api_name": "raemi59"
+    },
+    {
+        "name": "UZH Mercato",
+        "alias": "uniunten",
+        "api_name": "zentrum-mercato"
+    },
+    {
+        "name": "UZH Mercato Abend",
+        "alias": "uniuntenabend",
+        "api_name": "zentrum-mercato-abend"
+    },
+    {
+        "name": "UZH Zentrum",
+        "alias": "unioben",
+        "api_name": "zentrum-mensa"
+    },
+    {
+        "name": "UZH Lichthof",
+        "alias": "lichthof",
+        "api_name": "lichthof-rondell"
+    },
+    {
+        "name": "UZH Irchel",
+        "alias": "irchel",
+        "api_name": "mensa-uzh-irchel"
+    },
+    {
+        "name": "UZH Irchel Atrium",
+        "alias": "atrium",
+        "api_name": "irchel-cafeteria-atrium"
+    },
+    {
+        "name": "UZH Binzmühle",
+        "alias": "binzmuehle",
+        "api_name": "mensa-uzh-binzmuehle"
+    },
+    {
+        "name": "UZH Cityport",
+        "alias": "cityport",
+        "api_name": "mensa-uzh-cityport"
+    },
+    {
+        "name": "UZH Zahnmedizin",
+        "alias": "zahnmedizin",
+        "api_name": "cafeteria-zzm"
+    },
+    {
+        "name": "UZH Tierspital",
+        "alias": "tierspital",
+        "api_name": "cafeteria-uzh-tierspital"
+    },
+    {
+        "name": "UZH Botanischer Garten",
+        "alias": "botanischergarten",
+        "api_name": "cafeteria-uzh-botgarten"
+    },
+    {
+        "name": "UZH Zentrum",
+        "alias": "uni",
+        "api_name": "zentrum-mensa"
+    }
+]

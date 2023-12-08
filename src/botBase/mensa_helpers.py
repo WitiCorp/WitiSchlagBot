@@ -4,13 +4,10 @@ import json
 import urllib.request
 from bs4 import BeautifulSoup
 import logging
+import random
 
 
 MEALTIME_SWITCH = 14  # 14:00
-
-
-def get_meals(name):
-    return get_mensa(name).get_meals()
 
 
 def get_mensa(name):
@@ -25,9 +22,9 @@ def meal_format(meal):
         + f"<i>({meal.price_student}, "
         + f"{meal.price_intern}, "
         + f"{meal.price_extern})</i>\n"
+        + f"<b>{meal.name}</b>\n"
+        + f"{meal.description}"
     )
-    if len(meal.description) > 0:
-        ret += f"<b>{meal.description[0]}</b>\n{' '.join(meal.description[1:])}"
     return ret
 
 
@@ -42,121 +39,165 @@ def mensa_format(mensa, meals):
     )
 
 
-Meal = namedtuple("Meal", ["label", "price_student", "price_intern", "price_extern", "description"])
+Meal = namedtuple(
+    "Meal",
+    [
+        "label",
+        "price_student",
+        "price_intern",
+        "price_extern",
+        "name",
+        "description",
+    ],
+)
+
 
 class Mensa:
     name = "Not available."
-    alias = []
+    alias = ""
 
     def get_meals(self):
-        """
-        Returns list of menu objects of meuns that are available
-        """
         return []
 
 
-# ETH Mensa
 class ETHMensa(Mensa):
-    def __init__(self, api_name):
-        self.api_name = api_name
-
-        with open("./WitiGrailleBotFiles/mensas.json") as f:
-            mensas = json.load(f)
-        
-        for mensa in mensas:
-            if mensa["alias"] != self.api_name: continue
-
-            self.name = mensa["name"]
-            self.alias = mensa["alias"]
-            self.facility_id = mensa["facility-id"]
-            self.opening = ""
-            self.closing = ""
-
+    def __init__(self, name, alias, facility_id):
+        self.name = name
+        self.alias = alias
+        self.facility_id = facility_id
+        self.opening = ""
+        self.closing = ""
 
     def get_meals(self):
         menus = []
         try:
             now = datetime.datetime.now()
             date = now.strftime("%Y-%m-%d")
-            language = "en" # "de" or "en"
+            language = "en"  # "de" or "en"
             URL = f"https://idapps.ethz.ch/cookpit-pub-services/v1/weeklyrotas?client-id=ethz-wcms&lang={language}&rs-first=0&rs-size=50&valid-after={date}"
 
             with urllib.request.urlopen(URL) as request:
                 meals = json.loads(request.read().decode())
 
             logging.debug(f"Got {len(meals['weekly-rota-array'])} facilities")
+
             facility = None
-            for facility in meals['weekly-rota-array']:
-                valid_from = datetime.datetime.strptime(facility['valid-from'], '%Y-%m-%d')
-                if not 0 < (now - valid_from).days < 7: continue
-                if facility["facility-id"] != self.facility_id: continue
+            for facility in meals["weekly-rota-array"]:
+                valid_from = datetime.datetime.strptime(
+                    facility["valid-from"], "%Y-%m-%d"
+                )
+                if not 0 < (now - valid_from).days < 7:
+                    continue
+                if facility["facility-id"] != self.facility_id:
+                    continue
 
                 break
             else:
                 return menus
-            
+
             logging.debug(f"Found facility {facility['facility-id']}")
 
             day = None
-            for day in facility['day-of-week-array']:
-                if 'opening-hour-array' not in day.keys(): continue
-                if len(day['opening-hour-array'][0]['meal-time-array']) == 0: continue
-                if now.weekday() + 1 != day['day-of-week-code']: continue
+            for day in facility["day-of-week-array"]:
+                if "opening-hour-array" not in day.keys():
+                    continue
+                if len(day["opening-hour-array"][0]["meal-time-array"]) == 0:
+                    continue
+                if now.weekday() + 1 != day["day-of-week-code"]:
+                    continue
 
                 break
             else:
                 return menus
 
-            logging.debug(f"Found day {day['day-of-week-code']}")
+            logging.debug(
+                f"Found day {day['day-of-week-desc']} (code {day['day-of-week-code']}))"
+            )
 
-            meals = day['opening-hour-array'][0]['meal-time-array']
+            meals = day["opening-hour-array"][0]["meal-time-array"]
             meal = meals[0]
-            time_to = datetime.datetime.strptime(meal['time-to'], "%H:%M")
+            time_to = datetime.datetime.strptime(meal["time-to"], "%H:%M")
             if len(meals) > 1 and (
-                now.hour == time_to.hour and now.minute > time_to.minute or 
-                now.hour > time_to.hour
+                now.hour == time_to.hour
+                and now.minute > time_to.minute
+                or now.hour > time_to.hour
             ):
                 meal = meals[1]
 
-            self.opening = meal['time-from']
-            self.closing = meal['time-to']
+            logging.debug(f"Found meal {meal['name']}")
 
-            for m in meal['line-array']:
-                prices = [(p['price'], p['customer-group-desc']) for p in m['meal']['meal-price-array']]
-                student_price = next((p[0] for p in prices if 'students' in p[1]), "N/A")
-                intern_price = next((p[0] for p in prices if 'internal' in p[1]), "N/A")
-                extern_price = next((p[0] for p in prices if 'external' in p[1]), "N/A")
+            self.opening = meal["time-from"]
+            self.closing = meal["time-to"]
+
+            for m in meal["line-array"]:
+                if len(m) == 1:
+                    logging.debug(f"Found empty meal {m['name']}")
+
+                    emoji_variants = ["🤷", "🤷‍♂️", "🤷‍♀️"]
+
+                    menu = Meal(
+                        label=m["name"],
+                        price_student="$",
+                        price_intern="$$",
+                        price_extern="$$$",
+                        name=random.choice(emoji_variants),
+                        description="",
+                    )
+
+                    menus.append(menu)
+
+                    continue
+
+                logging.debug(f"Found meal {m['name']}")
+
+                prices = [
+                    (p["price"], p["customer-group-desc"])
+                    for p in m["meal"]["meal-price-array"]
+                ]
+                student_price = next((p[0] for p in prices if "students" in p[1]), "$")
+                intern_price = next((p[0] for p in prices if "internal" in p[1]), "$$")
+                extern_price = next((p[0] for p in prices if "external" in p[1]), "$$$")
 
                 menu = Meal(
-                    label = m['name'],
-                    price_student = student_price,
-                    price_intern = intern_price,
-                    price_extern = extern_price,
-                    description = [m['meal']['name']] + (m['meal']['description']).split(" ")
+                    label=m["name"],
+                    price_student=student_price,
+                    price_intern=intern_price,
+                    price_extern=extern_price,
+                    name=m["meal"]["name"],
+                    description=m["meal"]["description"],
                 )
 
                 menus.append(menu)
 
             return menus
-        except Exception as e: 
-            print(e)
-            return menus  # we failed, but let's pretend nothing ever happened
+        except Exception as e:
+            logging.error("Error while fetching ETH Mensa data")
+            logging.error(e)
+            return menus
 
 
 class UniMensa(Mensa):
-    api_name = ""  # the name used on the UNI website (has to be defined by the inheriting class)
-
-    tage = [
-        "montag",
-        "dienstag",
-        "mittwoch",
-        "donnerstag",
-        "freitag",
-        "samstag",
-        "sonntag",
-    ]
+    def __init__(self, name, alias, api_name):
+        self.name = name
+        self.alias = alias
+        self.tage = [
+            "montag",
+            "dienstag",
+            "mittwoch",
+            "donnerstag",
+            "freitag",
+            "samstag",
+            "sonntag",
+        ]
+        self.api_name = api_name
 
     def get_meals(self):
+        if self.alias == "uni":
+            if datetime.datetime.now().hour < MEALTIME_SWITCH:
+                self.api_name = "zentrum-mensa"
+            else:
+                self.api_name = "zentrum-mercato-abend"
+
         day = self.tage[datetime.datetime.today().weekday()]  # current day
         url = "https://www.mensa.uzh.ch/de/menueplaene/{}/{}.html".format(
             self.api_name, day
@@ -171,7 +212,8 @@ class UniMensa(Mensa):
 
             lines = menu_holder.text.split("\n")
         except Exception as e:
-            print(e)
+            logging.error("Error while fetching UZH Mensa data")
+            logging.error(e)
             return []
 
         menus = []
@@ -186,13 +228,21 @@ class UniMensa(Mensa):
                 if i < len(lines):
                     # very ugly html parsing for a very ugly html site :/
                     prices = lines[i].split(" | ")[1].split(" / ")
+                    name_desc = lines[i + 1].split("  ")
+                    name = ""
+                    description = ""
+                    if len(name_desc) > 0:
+                        name = name_desc[0]
+                    if len(name_desc) > 1:
+                        description = " ".join(name_desc[1:])
 
                     menu = Meal(
-                        label = lines[i].split(" | ")[0],
-                        price_student = prices[0].replace("CHF", "").replace(" ", ""),
-                        price_intern = prices[1].replace("CHF", "").replace(" ", ""),
-                        price_extern = prices[2].replace("CHF", "").replace(" ", ""),
-                        description = lines[i + 1].split("  ")
+                        label=lines[i].split(" | ")[0],
+                        price_student=prices[0].replace("CHF", "").replace(" ", ""),
+                        price_intern=prices[1].replace("CHF", "").replace(" ", ""),
+                        price_extern=prices[2].replace("CHF", "").replace(" ", ""),
+                        name=name,
+                        description=description,
                     )
                     menus.append(menu)
                     i += 1
@@ -200,132 +250,21 @@ class UniMensa(Mensa):
                 else:
                     return menus
             except Exception as e:
-                print(e)
-                # If anything bad happens just ignore it. Just like we do in real life.
+                logging.error("Error while parsing UZH Mensa data")
+                logging.error(e)
                 return menus
 
-    @property
-    def alias(self):
-        return self.aliases[0]
 
-class Platte(UniMensa):
-    aliases = ["platte", "plattestross", "plattenstrasse", "plattestrass"]
-    name = "Plattenstrasse"
-    api_name = "cafeteria-uzh-plattenstrasse"
+with open("./WitiGrailleBotFiles/eth_mensas.json") as f:
+    eth_mensas = json.load(f)
 
+with open("./WitiGrailleBotFiles/uzh_mensas.json") as f:
+    uzh_mensas = json.load(f)
 
-class Raemi59(UniMensa):
-    aliases = [
-        "raemi",
-        "rämi",
-        "rämi59",
-        "raemi59",
-        "rämi 59",
-        "raemi 59",
-        "raemistrasse",
-        "rämistrasse",
-        "rämistross",
-    ]
-    name = "Rämi 59"
-    api_name = "raemi59"
+available = []
 
+for mensa in eth_mensas:
+    available.append(ETHMensa(mensa["name"], mensa["alias"], mensa["facility-id"]))
 
-class UZHMercato(UniMensa):
-    aliases = ["uniunten", "mercato", "uni-unten", "uni unten"]
-    name = "UZH Mercato"
-    api_name = "zentrum-mercato"
-
-
-class UZHMercatoAbend(UniMensa):
-    aliases = ["uniuntenabend", "mercato abend", "uni-unten-abend", "uni unten abend"]
-    name = "UZH Mercato"
-    api_name = "zentrum-mercato-abend"
-
-
-class UZHZentrum(UniMensa):
-    aliases = ["unioben", "zentrum", "uni", "uzh zentrum", "uzhzentrum"]
-    name = "UZH Zentrum"
-    api_name = "zentrum-mensa"
-
-
-class UZHZentrumAllgemein(UniMensa):
-    aliases = ["uni"]
-    name = "UZH Zentrum"
-
-    def get_meals(self):
-        if datetime.datetime.now().hour < MEALTIME_SWITCH:
-            self.api_name = "zentrum-mensa"
-        else:
-            self.api_name = "zentrum-mercato-abend"
-        return super().get_meals()
-    
-
-class UZHLichthof(UniMensa):
-    aliases = ["lichthof", "rondell"]
-    name = "UZH Lichthof"
-    api_name = "lichthof-rondell"
-
-
-class Irchel(UniMensa):
-    aliases = ["irchel", "irchel mensa", "irchelmensa"]
-    name = "UZH Irchel"
-    api_name = "mensa-uzh-irchel"
-
-
-class IrchelAtrium(UniMensa):
-    aliases = ["atrium", "irchel atrium"]
-    name = "UZH Irchel Atrium"
-    api_name = "irchel-cafeteria-atrium"
-
-
-class Binzmühle(UniMensa):
-    aliases = ["binzmuehle", "binzmühle"]
-    name = "UZH Binzmühle"
-    api_name = "mensa-uzh-binzmuehle"
-
-
-class Cityport(UniMensa):
-    aliases = ["cityport"]
-    name = "UZH Cityport"
-    api_name = "mensa-uzh-cityport"
-
-
-class Zahnmedizin(UniMensa):
-    aliases = ["zahnmedizin", "zzm"]
-    name = "UZH Zahnmedizin"
-    api_name = "cafeteria-zzm"
-
-
-class Tierspital(UniMensa):
-    aliases = ["tierspital"]
-    name = "UZH Tierspital"
-    api_name = "cafeteria-uzh-tierspital"
-
-
-class BotanischerGarten(UniMensa):
-    aliases = ["botanischergarten", "botanischer garten", "garten", "botgarten"]
-    name = "UZH Botanischer Garten"
-    api_name = "cafeteria-uzh-botgarten"
-
-available = [
-    ETHMensa("poly"),
-    ETHMensa("foodlab"),
-    ETHMensa("clausius"),
-    ETHMensa("polysnack"),
-    ETHMensa("alumni"),
-    ETHMensa("fusion"),
-    ETHMensa("dozentenfoyer"),
-    Platte(),
-    Raemi59(),
-    UZHMercato(),
-    UZHZentrum(),
-    UZHLichthof(),
-    Irchel(),
-    IrchelAtrium(),
-    Binzmühle(),
-    Cityport(),
-    Zahnmedizin(),
-    Tierspital(),
-    BotanischerGarten(),
-    UZHZentrumAllgemein(),
-]
+for mensa in uzh_mensas:
+    available.append(UniMensa(mensa["name"], mensa["alias"], mensa["api_name"]))
