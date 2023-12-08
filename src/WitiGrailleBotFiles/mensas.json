@@ -1,0 +1,82 @@
+[
+  {
+    "name": "Archimedes",
+    "alias": "archimedes",
+    "facility-id": 8
+  },
+  {
+    "name": "Clausiusbar",
+    "alias": "clausius",
+    "facility-id": 3
+  },
+  {
+    "name": "Dozentenfoyer",
+    "alias": "dozentenfoyer",
+    "facility-id": 5
+  },
+  {
+    "name": "food&lab",
+    "alias": "foodlab",
+    "facility-id": 7
+  },
+  {
+    "name": "Mensa Polyterrasse",
+    "alias": "poly",
+    "facility-id": 9
+  },
+  {
+    "name": "Polysnack",
+    "alias": "polysnack",
+    "facility-id": 10
+  },
+  {
+    "name": "Tannenbar",
+    "alias": "tannenbar",
+    "facility-id": 11
+  },
+  {
+    "name": "Alumni quattro Lounge",
+    "alias": "alumni",
+    "facility-id": 14
+  },
+  {
+    "name": "Bistro HPI",
+    "alias": "bistro",
+    "facility-id": 16
+  },
+  {
+    "name": "food market | green day",
+    "alias": "green",
+    "facility-id": 17
+  },
+  {
+    "name": "food market | grill bbQ",
+    "alias": "grill",
+    "facility-id": 18
+  },
+  {
+    "name": "food market | pizza pasta day",
+    "alias": "pizza",
+    "facility-id": 19
+  },
+  {
+    "name": "FUSION meal",
+    "alias": "fusion",
+    "facility-id": 20
+  },
+  {
+    "name": "FUSION coffee",
+    "alias": "fusioncoffee",
+    "facility-id": 21
+  },
+  {
+    "name": "Rice Up!",
+    "alias": "riceup",
+    "facility-id": 22
+  },
+  {
+    "name": "Octavo",
+    "alias": "octavo",
+    "facility-id": 23
+  }
+]

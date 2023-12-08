@@ -25,11 +25,10 @@ BOT_TOKEN_FILE = "WitiGrailleBotFiles/TOKEN.token"
 FAVORITES_FILE = "WitiGrailleBotFiles/favorite_mensas.pickle"
 DEVELOPER_CHAT_ID = 631157495
 ERRORS_TO_LOG = []
-MENSAS = [mensa.aliases[0] for mensa in mensa_helpers.available]
+MENSAS = [mensa.alias for mensa in mensa_helpers.available]
 FAVORITE_MENSAS = {}
 FAVORITE_TIME = time(9, 00, tzinfo=pytz.timezone("Europe/Zurich"))
 TIMES = ["11:30", "11:45", "12:00", "12:15", "12:30", "12:45", "13:00"]
-
 
 def update_favorite_pickle():
     global FAVORITE_MENSAS
@@ -49,6 +48,15 @@ def load_favorite_pickle():
 async def mensa_menu(mensa, update, context):
     mensa = mensa_helpers.get_mensa(mensa)
     meals = mensa.get_meals()
+    if (isinstance(meals, str)):
+        await context.bot.send_photo(
+            chat_id=update.effective_chat.id,
+            photo=meals,
+        )
+        logging.info(
+            f"Sent menu for {mensa.name} to {update.effective_chat.title} as image"
+            + f"with id {update.effective_chat.id}"
+        )
     if len(meals) == 0:
         await context.bot.send_message(
             chat_id=update.effective_chat.id,

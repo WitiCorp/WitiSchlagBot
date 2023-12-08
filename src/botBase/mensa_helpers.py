@@ -1,7 +1,9 @@
 import datetime
+from collections import namedtuple
 import json
 import urllib.request
 from bs4 import BeautifulSoup
+import logging
 
 
 MEALTIME_SWITCH = 14  # 14:00
@@ -13,7 +15,7 @@ def get_meals(name):
 
 def get_mensa(name):
     for mensa in available:
-        if mensa.has_alias(name):
+        if mensa.alias == name:
             return mensa
 
 
@@ -21,7 +23,7 @@ def meal_format(meal):
     ret = (
         f"{meal.label} "
         + f"<i>({meal.price_student}, "
-        + f"{meal.price_staff}, "
+        + f"{meal.price_intern}, "
         + f"{meal.price_extern})</i>\n"
     )
     if len(meal.description) > 0:
@@ -40,29 +42,11 @@ def mensa_format(mensa, meals):
     )
 
 
-class Meal:
-    label = "No label"
-    price_student = "Not available."
-    price_staff = "Not available."
-    price_extern = "Not available."
-    description = []
-
-    def __str__(self):
-        """
-        to String Method
-        :return:
-        """
-        out = "{} (STUD:{} STAFF:{} EXTERN:{})".format(
-            self.label, self.price_student, self.price_staff, self.price_extern
-        )
-        for description in self.description:
-            out = out + "\n\t{}".format(description)
-        return out
-
+Meal = namedtuple("Meal", ["label", "price_student", "price_intern", "price_extern", "description"])
 
 class Mensa:
     name = "Not available."
-    aliases = []
+    alias = []
 
     def get_meals(self):
         """
@@ -70,46 +54,91 @@ class Mensa:
         """
         return []
 
-    # Checks if Mensa could be called that name
-    def has_alias(self, alias):
-        return alias.lower() in self.aliases or alias.lower() == self.name.lower()
-
 
 # ETH Mensa
 class ETHMensa(Mensa):
-    api_name = (
-        ""  # the name used in the ETH api (has to be defined by the inheriting class)
-    )
-    opening = ""
-    closing = ""
+    def __init__(self, api_name):
+        self.api_name = api_name
+
+        with open("./WitiGrailleBotFiles/mensas.json") as f:
+            mensas = json.load(f)
+        
+        for mensa in mensas:
+            if mensa["alias"] != self.api_name: continue
+
+            self.name = mensa["name"]
+            self.alias = mensa["alias"]
+            self.facility_id = mensa["facility-id"]
+            self.opening = ""
+            self.closing = ""
+
 
     def get_meals(self):
         menus = []
         try:
-            date = datetime.datetime.now().strftime("%Y-%m-%d")
-            mealtime = (
-                "lunch" if datetime.datetime.now().hour < MEALTIME_SWITCH else "dinner"
-            )
-            url = "https://www.webservices.ethz.ch/gastro/v1/RVRI/Q1E1/meals/en/{}/{}".format(
-                date, mealtime
-            )
-            with urllib.request.urlopen(url) as request:
-                mensas = json.loads(request.read().decode())
+            now = datetime.datetime.now()
+            date = now.strftime("%Y-%m-%d")
+            language = "en" # "de" or "en"
+            URL = f"https://idapps.ethz.ch/cookpit-pub-services/v1/weeklyrotas?client-id=ethz-wcms&lang={language}&rs-first=0&rs-size=50&valid-after={date}"
 
-            for mensa in mensas:
-                if mensa["mensa"] == self.api_name:
-                    self.opening = mensa["hours"]["mealtime"][0]["from"]
-                    self.closing = mensa["hours"]["mealtime"][0]["to"]
-                    for meal in mensa["meals"]:
-                        menu = Meal()
-                        menu.label = meal["label"]
-                        menu.price_student = meal["prices"]["student"]
-                        menu.price_staff = meal["prices"]["staff"]
-                        menu.price_extern = meal["prices"]["extern"]
-                        menu.description = meal["description"]
-                        menus.append(menu)
+            with urllib.request.urlopen(URL) as request:
+                meals = json.loads(request.read().decode())
+
+            logging.debug(f"Got {len(meals['weekly-rota-array'])} facilities")
+            facility = None
+            for facility in meals['weekly-rota-array']:
+                valid_from = datetime.datetime.strptime(facility['valid-from'], '%Y-%m-%d')
+                if not 0 < (now - valid_from).days < 7: continue
+                if facility["facility-id"] != self.facility_id: continue
+
+                break
+            else:
+                return menus
+            
+            logging.debug(f"Found facility {facility['facility-id']}")
+
+            day = None
+            for day in facility['day-of-week-array']:
+                if 'opening-hour-array' not in day.keys(): continue
+                if len(day['opening-hour-array'][0]['meal-time-array']) == 0: continue
+                if now.weekday() + 1 != day['day-of-week-code']: continue
+
+                break
+            else:
+                return menus
+
+            logging.debug(f"Found day {day['day-of-week-code']}")
+
+            meals = day['opening-hour-array'][0]['meal-time-array']
+            meal = meals[0]
+            time_to = datetime.datetime.strptime(meal['time-to'], "%H:%M")
+            if len(meals) > 1 and (
+                now.hour == time_to.hour and now.minute > time_to.minute or 
+                now.hour > time_to.hour
+            ):
+                meal = meals[1]
+
+            self.opening = meal['time-from']
+            self.closing = meal['time-to']
+
+            for m in meal['line-array']:
+                prices = [(p['price'], p['customer-group-desc']) for p in m['meal']['meal-price-array']]
+                student_price = next((p[0] for p in prices if 'students' in p[1]), "N/A")
+                intern_price = next((p[0] for p in prices if 'internal' in p[1]), "N/A")
+                extern_price = next((p[0] for p in prices if 'external' in p[1]), "N/A")
+
+                menu = Meal(
+                    label = m['name'],
+                    price_student = student_price,
+                    price_intern = intern_price,
+                    price_extern = extern_price,
+                    description = [m['meal']['name']] + (m['meal']['description']).split(" ")
+                )
+
+                menus.append(menu)
+
             return menus
-        except Exception as e:
+        except Exception as e: 
             print(e)
             return menus  # we failed, but let's pretend nothing ever happened
 
@@ -156,15 +185,15 @@ class UniMensa(Mensa):
                 # check if we found menu or hit end
                 if i < len(lines):
                     # very ugly html parsing for a very ugly html site :/
-                    menu = Meal()
-                    menu.label = lines[i].split(" | ")[0]
                     prices = lines[i].split(" | ")[1].split(" / ")
 
-                    menu.price_student = prices[0].replace("CHF", "").replace(" ", "")
-                    menu.price_staff = prices[1].replace("CHF", "").replace(" ", "")
-                    menu.price_extern = prices[2].replace("CHF", "").replace(" ", "")
-
-                    menu.description = lines[i + 1].split("  ")
+                    menu = Meal(
+                        label = lines[i].split(" | ")[0],
+                        price_student = prices[0].replace("CHF", "").replace(" ", ""),
+                        price_intern = prices[1].replace("CHF", "").replace(" ", ""),
+                        price_extern = prices[2].replace("CHF", "").replace(" ", ""),
+                        description = lines[i + 1].split("  ")
+                    )
                     menus.append(menu)
                     i += 1
                 # return what we've found when we hit the end
@@ -175,72 +204,9 @@ class UniMensa(Mensa):
                 # If anything bad happens just ignore it. Just like we do in real life.
                 return menus
 
-
-class Polymensa(ETHMensa):
-    aliases = ["poly", "polymensa", "polyterrasse", "mensa polyterrasse"]
-    name = "Mensa Polyterrasse"
-    api_name = "Mensa Polyterrasse"
-
-
-class FoodLab(ETHMensa):
-    aliases = ["foodlab", "food lab", "food&lab"]
-    name = "Food&Lab"
-    api_name = "food&lab"
-
-
-class Clausiusbar(ETHMensa):
-    aliases = ["clausius", "clausiusbar", "lausiusbar", "lausius"]
-    name = "Causiusbar"
-    api_name = "Clausiusbar"
-
-
-class Polysnack(ETHMensa):
-    aliases = ["polysnack", "snack"]
-    name = "Polysnack"
-    api_name = "Polysnack"
-
-
-class Foodtrailer(ETHMensa):
-    aliases = ["foodtrailer", "trailer", "trailerburger"]
-    name = "Trailerburger"
-    api_name = "Foodtrailer ETZ"
-
-
-class AlumniLounge(ETHMensa):
-    aliases = ["alumni", "alumnilounge", "alumni lounge"]
-    name = "Alumni quattro Lounge"
-    api_name = "Alumni quattro Lounge"
-
-
-class Bellavista(ETHMensa):
-    aliases = ["bellavista", "bella vista"]
-    name = "Bellavista"
-    api_name = "BELLAVISTA"
-
-
-class FusionMeal(ETHMensa):
-    aliases = ["fusion", "fusionmeal", "fusion meal"]
-    name = "Fusion Meal"
-    api_name = "FUSION meal"
-
-
-class GessBar(ETHMensa):
-    aliases = ["gess", "gessbar", "g-essbar", "essbar"]
-    name = "G-ESSbar"
-    api_name = "G-ESSbar"
-
-
-class Tannenbar(ETHMensa):
-    aliases = ["tanne", "tannenbar", "tannen bar"]
-    name = "Tannenbar"
-    api_name = "Tannenbar"
-
-
-class Dozentenfoyer(ETHMensa):
-    aliases = ["dozentenfoyer", "dozenten", "foyer", "dozenten foyer"]
-    name = "Dozentenfoyer"
-    api_name = "Dozentenfoyer"
-
+    @property
+    def alias(self):
+        return self.aliases[0]
 
 class Platte(UniMensa):
     aliases = ["platte", "plattestross", "plattenstrasse", "plattestrass"]
@@ -292,7 +258,7 @@ class UZHZentrumAllgemein(UniMensa):
         else:
             self.api_name = "zentrum-mercato-abend"
         return super().get_meals()
-
+    
 
 class UZHLichthof(UniMensa):
     aliases = ["lichthof", "rondell"]
@@ -341,19 +307,14 @@ class BotanischerGarten(UniMensa):
     name = "UZH Botanischer Garten"
     api_name = "cafeteria-uzh-botgarten"
 
-
 available = [
-    Polymensa(),
-    FoodLab(),
-    Clausiusbar(),
-    Polysnack(),
-    Foodtrailer(),
-    AlumniLounge(),
-    Bellavista(),
-    FusionMeal(),
-    GessBar(),
-    Tannenbar(),
-    Dozentenfoyer(),
+    ETHMensa("poly"),
+    ETHMensa("foodlab"),
+    ETHMensa("clausius"),
+    ETHMensa("polysnack"),
+    ETHMensa("alumni"),
+    ETHMensa("fusion"),
+    ETHMensa("dozentenfoyer"),
     Platte(),
     Raemi59(),
     UZHMercato(),
