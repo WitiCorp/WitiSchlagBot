@@ -86,7 +86,7 @@ class ETHMensa(Mensa):
                 valid_from = datetime.datetime.strptime(
                     facility["valid-from"], "%Y-%m-%d"
                 )
-                if not 0 < (now - valid_from).days < 7:
+                if not 0 <= (now - valid_from).days < 7:
                     continue
                 if facility["facility-id"] != self.facility_id:
                     continue
