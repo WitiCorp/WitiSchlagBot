@@ -1,5 +1,5 @@
 import logging
-from datetime import time
+from datetime import time, datetime
 import pytz
 import pickle
 import numpy as np
@@ -88,14 +88,27 @@ def format_favorites(chat_id):
         : len(FAVORITE_MENSAS[chat_id])
     ]
 
+    an_open_mensa = False
+
     for emoji, mensa in zip(mensa_emojis, FAVORITE_MENSAS[chat_id]):
         mensa = mensa_helpers.get_mensa(mensa)
         meals = mensa.get_meals()
         if len(meals) == 0:
             continue
 
-        message += f"{emoji}{mensa_helpers.mensa_format(mensa, meals)}\n\n"
+        if len(meals) == 0:
+            continue
 
+        current_time = datetime.now(pytz.timezone("Europe/Zurich")).time()
+        if isinstance(mensa, mensa_helpers.ETHMensa) and current_time >= datetime.strptime(mensa.closing, "%H:%M").time():
+            continue
+
+        message += f"{emoji}{mensa_helpers.mensa_format(mensa, meals)}\n\n"
+        an_open_mensa = True
+
+    if not an_open_mensa:
+        return "No favorite mensas are open right now."
+    
     return message
 
 
@@ -291,7 +304,7 @@ async def add_favorite_mensa(
 ) -> None:
     if update.effective_message.chat_id not in FAVORITE_MENSAS:
         await update.message.reply_text(
-            "Please set a daily mensa job first with /set_daily_mensa"
+            "Please set a daily mensa job first with /set"
         )
         return
 
