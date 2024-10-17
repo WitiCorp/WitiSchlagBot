@@ -11,9 +11,9 @@ Two bots are included in here:
 
 ## Repos sepcific
 
-- [ ] Move to WitiCorp repo
-- [ ] Implement daily reboot
-  - [ ] Understand CRON
+- [x] Move to WitiCorp repo
+- [x] Implement daily reboot
+  - [x] Understand CRON
   - [ ] Setup file to auto-reload
   - [ ] Setup git pull at midnight
 - [ ] Add PR access to WitiCorp

@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  mensabot:
+    build: .
+    ports:
+      - "80:80"
+    secrets:
+      - op_service_account_token
+    volumes:
+      - ./src/WitiGrailleBotFiles:/usr/src/app/src/WitiGrailleBotFiles
+    environment:
+      - NAME=MensaBot
+    command: [ "conda", "run", "-n", "witi", "python", "./mensa_bot.py" ]
+
+secrets:
+  op_service_account_token:
+    file: ./op_service_account_token.txt
