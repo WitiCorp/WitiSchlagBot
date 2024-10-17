@@ -14,4 +14,6 @@ dependencies:
       - "jax[cpu]"
       - protobuf==3.20.*
       - pyMensa
+      - onepassword-sdk
+      - beautifulsoup4
       

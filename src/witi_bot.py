@@ -17,6 +17,9 @@ from telegram.ext import (
     Application,
 )
 
+import asyncio
+from onepassword.client import Client
+
 LOG_FILE = "WitiBotFiles/bot.log"
 BOT_TOKEN_FILE = "WitiBotFiles/TOKEN.token"
 OPENAI_TOKEN_FILE = "WitiBotFiles/OPENAI.token"
@@ -210,7 +213,7 @@ async def prompt_openai(
             text="I'm sorry, I'm poor and have reached my rate limit. "
             + "Please try again later.",
         )
-        
+
     return False, ""
 
 
@@ -342,12 +345,26 @@ class ListeningTo(filters.MessageFilter):
 
 listening_to_filter = ListeningTo()
 
+    
+def main():
+    token = pi_bot.get_service_account_token()
 
-if __name__ == "__main__":
-    with open(BOT_TOKEN_FILE) as f:
-        token = f.readlines()[0]
-    with open(OPENAI_TOKEN_FILE) as f:
-        openai.api_key = f.readlines()[0]
+    loop = asyncio.get_event_loop()
+    client = loop.run_until_complete(
+        Client.authenticate(
+            auth=token,
+            integration_name="MensaBot",
+            integration_version="v1.0.0",
+        )
+    )
+
+    value = loop.run_until_complete(
+        client.secrets.resolve("op://Automations/WitiTestBot Telegram Token/credential")
+    )
+
+    openai.api_key = loop.run_until_complete(
+        client.secrets.resolve("op://Automations/OpenAI WitiBot API Key/credential")
+    )
 
     commands = (
         "start - Start listening to a chat\n"
@@ -369,4 +386,8 @@ if __name__ == "__main__":
         MessageHandler(filters.ALL, catch_all),
     ]
 
-    pi_bot.start_bot("WitiBot", commands, LOG_FILE, token, post_init, handlers)
+    pi_bot.start_bot("WitiBot", commands, LOG_FILE, value, post_init, handlers)
+
+
+if __name__ == "__main__":
+    main()

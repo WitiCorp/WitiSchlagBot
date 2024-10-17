@@ -10,8 +10,8 @@ from telegram.ext import ContextTypes, ApplicationBuilder, CommandHandler, Updat
 from telegram.constants import ParseMode
 from telegram.error import NetworkError, BadRequest
 from urllib3.exceptions import HTTPError
-import os
 import signal
+import os
 
 DEVELOPER_CHAT_ID = 631157495
 IGNORED_ERRORS = [NetworkError, HTTPError]
@@ -185,3 +185,12 @@ def start_bot(
     application.add_error_handler(error_handler)
 
     application.run_polling()
+
+
+def get_service_account_token():
+    secret_path = "/run/secrets/op_service_account_token"
+    if os.path.exists(secret_path):
+        with open(secret_path, "r") as file:
+            return file.read().strip()
+    else:
+        raise FileNotFoundError(f"Secret file not found at {secret_path}")

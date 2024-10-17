@@ -3,6 +3,8 @@ from datetime import time, datetime
 import pytz
 import pickle
 import numpy as np
+import asyncio
+from onepassword.client import Client
 
 from botBase import pi_bot, mensa_helpers, reaction_emojis
 
@@ -30,6 +32,7 @@ FAVORITE_MENSAS = {}
 FAVORITE_TIME = time(9, 00, tzinfo=pytz.timezone("Europe/Zurich"))
 TIMES = ["11:30", "11:45", "12:00", "12:15", "12:30", "12:45", "13:00"]
 
+
 def update_favorite_pickle():
     global FAVORITE_MENSAS
     with open(FAVORITES_FILE, "wb") as f:
@@ -48,7 +51,7 @@ def load_favorite_pickle():
 async def mensa_menu(mensa, update, context):
     mensa = mensa_helpers.get_mensa(mensa)
     meals = mensa.get_meals()
-    if (isinstance(meals, str)):
+    if isinstance(meals, str):
         await context.bot.send_photo(
             chat_id=update.effective_chat.id,
             photo=meals,
@@ -100,7 +103,10 @@ def format_favorites(chat_id):
             continue
 
         current_time = datetime.now(pytz.timezone("Europe/Zurich")).time()
-        if isinstance(mensa, mensa_helpers.ETHMensa) and current_time >= datetime.strptime(mensa.closing, "%H:%M").time():
+        if (
+            isinstance(mensa, mensa_helpers.ETHMensa)
+            and current_time >= datetime.strptime(mensa.closing, "%H:%M").time()
+        ):
             continue
 
         message += f"{emoji}{mensa_helpers.mensa_format(mensa, meals)}\n\n"
@@ -108,7 +114,7 @@ def format_favorites(chat_id):
 
     if not an_open_mensa:
         return "No favorite mensas are open right now."
-    
+
     return message
 
 
@@ -178,7 +184,7 @@ async def mensa_favorites(update: Update, context: ContextTypes.DEFAULT_TYPE):
             + f"with id {update.effective_user.id}"
         )
         return
-    
+
     if len(FAVORITE_MENSAS[chat_id]) == 0:
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
@@ -303,9 +309,7 @@ async def add_favorite_mensa(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
     if update.effective_message.chat_id not in FAVORITE_MENSAS:
-        await update.message.reply_text(
-            "Please set a daily mensa job first with /set"
-        )
+        await update.message.reply_text("Please set a daily mensa job first with /set")
         return
 
     success = []
@@ -369,10 +373,21 @@ async def remove_favorite_mensa(
     )
 
 
-if __name__ == "__main__":
-    with open(BOT_TOKEN_FILE) as f:
-        token = f.readlines()[0]
-    application = ApplicationBuilder().token(token).build()
+def main():
+    token = pi_bot.get_service_account_token()
+
+    loop = asyncio.get_event_loop()
+    client = loop.run_until_complete(
+        Client.authenticate(
+            auth=token,
+            integration_name="MensaBot",
+            integration_version="v1.0.0",
+        )
+    )
+
+    value = loop.run_until_complete(
+        client.secrets.resolve("op://Automations/WitiTestBot Telegram Token/credential")
+    )
 
     commands = (
         "mensa - Get the menu for a mensa\n"
@@ -402,4 +417,8 @@ if __name__ == "__main__":
         MessageHandler(filters.COMMAND, generic_command),
     ]
 
-    pi_bot.start_bot("mensa", commands, LOG_FILE, token, post_init, handlers)
+    pi_bot.start_bot("mensa", commands, LOG_FILE, value, post_init, handlers)
+
+
+if __name__ == "__main__":
+    main()
