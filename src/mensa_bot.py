@@ -157,6 +157,25 @@ async def post_init(application: Application):
         + f"and name {application.bot.name}"
     )
 
+    commands = [
+        ("mensa", f"Get the menu for a mensa"),
+        ("set", f"Set a daily mensa job for your favorite mensas"),
+        ("unset", f"Unset a daily mensa job"),
+        ("add", f"Add a mensa to your favorite mensas"),
+        ("remove", f"Remove a mensa from your favorite mensas"),
+        ("favorite", f"Get the menu for your favorite mensas"),
+        ("poll", f"Create a poll for the menu of a mensa"),
+    ]
+
+    commands += [
+        (mensa, f"Get the menu for {mensa_helpers.get_mensa(mensa).name}")
+        for mensa in MENSAS
+    ]
+
+    await application.bot.delete_my_commands()
+    await application.bot.set_my_commands(commands)
+    logging.info("Set commands for bot")
+
 
 async def generic_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     command = update.effective_message.text[1:].split("@")[0]
@@ -388,6 +407,11 @@ def main():
     value = loop.run_until_complete(
         client.secrets.resolve("op://Automations/WitiTestBot Telegram Token/credential")
     )
+    # value = loop.run_until_complete(
+    #     client.secrets.resolve(
+    #         "op://Automations/WitiGrailleBot Telegram Token/credential"
+    #     )
+    # )
 
     commands = (
         "mensa - Get the menu for a mensa\n"
@@ -417,7 +441,7 @@ def main():
         MessageHandler(filters.COMMAND, generic_command),
     ]
 
-    pi_bot.start_bot("mensa", commands, LOG_FILE, value, post_init, handlers)
+    pi_bot.start_bot("mensa", LOG_FILE, value, post_init, handlers)
 
 
 if __name__ == "__main__":

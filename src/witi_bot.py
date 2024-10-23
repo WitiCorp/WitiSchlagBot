@@ -59,6 +59,19 @@ async def post_init(application: Application) -> None:
     )
     logging.info("Loaded message backlog")
 
+    commands = [
+        ("start", f"Start listening to a chat"),
+        ("stop", f"Stop listening to a chat"),
+        ("backlog", f"Show the backlog of a chat"),
+        ("summarize", f"Summarize the backlog of a chat"),
+        ("prompt", f"Prompt the AI to generate a response with the chat as context"),
+        ("clear", f"Clear the backlog of a chat"),
+    ]
+
+    await application.bot.delete_my_commands()
+    await application.bot.set_my_commands(commands)
+    logging.info("Set commands for bot")
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global MESSAGE_BACKLOG
@@ -345,7 +358,7 @@ class ListeningTo(filters.MessageFilter):
 
 listening_to_filter = ListeningTo()
 
-    
+
 def main():
     token = pi_bot.get_service_account_token()
 
@@ -361,18 +374,12 @@ def main():
     value = loop.run_until_complete(
         client.secrets.resolve("op://Automations/WitiTestBot Telegram Token/credential")
     )
+    # value = loop.run_until_complete(
+    #     client.secrets.resolve("op://Automations/WitiBot Telegram Token/credential")
+    # )
 
     openai.api_key = loop.run_until_complete(
         client.secrets.resolve("op://Automations/OpenAI WitiBot API Key/credential")
-    )
-
-    commands = (
-        "start - Start listening to a chat\n"
-        "stop - Stop listening to a chat\n"
-        "backlog - Show the backlog of a chat\n"
-        "summarize - Summarize the backlog of a chat\n"
-        "prompt - Prompt the AI to generate a response with the chat as context\n"
-        "clear - Clear the backlog of a chat\n"
     )
 
     handlers = [
@@ -386,7 +393,7 @@ def main():
         MessageHandler(filters.ALL, catch_all),
     ]
 
-    pi_bot.start_bot("WitiBot", commands, LOG_FILE, value, post_init, handlers)
+    pi_bot.start_bot("WitiBot", LOG_FILE, value, post_init, handlers)
 
 
 if __name__ == "__main__":

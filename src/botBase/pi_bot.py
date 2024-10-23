@@ -158,7 +158,6 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
 
 def start_bot(
     bot_name: str,
-    commands: list,
     log_file: str,
     token: str,
     post_init: callable,  # type: ignore
@@ -172,8 +171,6 @@ def start_bot(
     )
 
     logging.info(f"Starting {bot_name} bot")
-
-    logging.info(f"Registered commands:\n{commands}")
 
     application = ApplicationBuilder().token(token).post_init(post_init).build()
     updater = application.updater
