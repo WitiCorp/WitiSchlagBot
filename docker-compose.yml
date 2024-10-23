@@ -1,8 +1,8 @@
-version: '3.8'
-
 services:
   mensabot:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.mensabot
     ports:
       - "80:80"
     secrets:
@@ -11,7 +11,21 @@ services:
       - ./src/WitiGrailleBotFiles:/usr/src/app/src/WitiGrailleBotFiles
     environment:
       - NAME=MensaBot
-    command: [ "conda", "run", "-n", "witi", "python", "./mensa_bot.py" ]
+    command: [ "python", "./mensa_bot.py" ]
+
+  witibot:
+    build:
+      context: .
+      dockerfile: Dockerfile.witibot
+    ports:
+      - "443:443"
+    secrets:
+      - op_service_account_token
+    volumes:
+      - ./src/WitiBotFiles:/usr/src/app/src/WitiBotFiles
+    environment:
+      - NAME=WitiBot
+    command: [ "python", "./witi_bot.py" ]
 
 secrets:
   op_service_account_token:

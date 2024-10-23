@@ -1,0 +1,5 @@
+numpy
+python-telegram-bot==20.0a2
+onepassword-sdk
+beautifulsoup4
+urllib3
