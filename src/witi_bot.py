@@ -376,7 +376,7 @@ def main():
     #     client.secrets.resolve("op://Automations/26pi3z77cwe7squk4d6vktbpwu/credential")
     # )  # Test Bot
     value = loop.run_until_complete(
-        client.secrets.resolve("op://Automations/WitiBot Telegram Token/credential")
+        client.secrets.resolve("op://Automations/r657nhlj7dvmavfrzv22c7xnsa/credential")
     )  # WitiBot
 
     client = OpenAI(
