@@ -271,7 +271,10 @@ async def favorite_job(context: ContextTypes.DEFAULT_TYPE) -> None:
     message = format_favorites(job.chat_id)
 
     await context.bot.send_message(
-        chat_id=job.chat_id, text=message, parse_mode=ParseMode.HTML
+        chat_id=job.chat_id,
+        text=message,
+        parse_mode=ParseMode.HTML,
+        disable_notification=True,
     )
 
     logging.info(f"Sent favorite mensas to chat with id {job.chat_id}")
@@ -404,31 +407,12 @@ def main():
         )
     )
 
-    value = loop.run_until_complete(
-        client.secrets.resolve("op://Automations/WitiTestBot Telegram Token/credential")
-    )
     # value = loop.run_until_complete(
-    #     client.secrets.resolve(
-    #         "op://Automations/WitiGrailleBot Telegram Token/credential"
-    #     )
-    # )
-
-    commands = (
-        "mensa - Get the menu for a mensa\n"
-        "set - Set a daily mensa job for your favorite mensas\n"
-        "unset - Unset a daily mensa job\n"
-        "add - Add a mensa to your favorite mensas\n"
-        "remove - Remove a mensa from your favorite mensas\n"
-        "favorite - Get the menu for your favorite mensas. Only Works if you have a daily mensa job set\n"
-        "poll - Create a poll for the menu of a mensa\n"
-    )
-
-    commands += "\n".join(
-        [
-            f"{mensa} - Get the menu for {mensa_helpers.get_mensa(mensa).name}"
-            for mensa in MENSAS
-        ]
-    )
+    #     client.secrets.resolve("op://Automations/26pi3z77cwe7squk4d6vktbpwu/credential")
+    # )  # Test Bot
+    value = loop.run_until_complete(
+        client.secrets.resolve("op://Automations/tvl3ujrqas6eznkkphbsynqg7y/credential")
+    )  # GrailleBot
 
     handlers = [
         CommandHandler("mensa", mensa),

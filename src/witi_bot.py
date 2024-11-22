@@ -4,6 +4,10 @@ import pickle
 from botBase import pi_bot
 
 import openai
+from openai import OpenAI
+
+client = None
+
 from telegram import (
     Update,
     Message,
@@ -184,14 +188,11 @@ async def prompt_openai(
     engine: str = "gpt-3.5-turbo",
 ):
     try:
-        response = openai.ChatCompletion.create(
-            model=engine,
-            messages=prompt,
-        )
+        response = client.chat.completions.create(model=engine, messages=prompt)
 
-        finish_reason = response["choices"][0]["finish_reason"]  # type: ignore
-        usage = response["usage"]["total_tokens"]  # type: ignore
-        summary = response["choices"][0]["message"]["content"]  # type: ignore
+        finish_reason = response.choices[0].finish_reason  # type: ignore
+        usage = response.usage.total_tokens  # type: ignore
+        summary = response.choices[0].message.content  # type: ignore
 
         logging.info(
             f"Finished summarizing with reason: {finish_reason}"
@@ -213,14 +214,14 @@ async def prompt_openai(
         else:
             return True, summary
 
-    except openai.error.APIConnectionError:
+    except openai.APIConnectionError:
         await context.bot.send_message(
             chat_id=response_chat_id,
             text="I'm having trouble connecting to OpenAI's servers. "
             + "Please try again later.",
         )
 
-    except openai.error.RateLimitError:
+    except openai.RateLimitError:
         await context.bot.send_message(
             chat_id=response_chat_id,
             text="I'm sorry, I'm poor and have reached my rate limit. "
@@ -256,7 +257,7 @@ async def summarize(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chat_id=response_chat_id, text="I haven't seen any messages yet."
         )
     else:
-        await context.bot.send_message(
+        temp_message = await context.bot.send_message(
             chat_id=response_chat_id, text="Generating summary..."
         )
 
@@ -278,9 +279,7 @@ async def summarize(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode=ParseMode.HTML,
             )
 
-    await context.bot.delete_message(
-        update.effective_chat.id, update.effective_message.id
-    )
+    await context.bot.delete_message(response_chat_id, temp_message.id)
 
     logging.info(
         f"Sent summary to <{update.effective_user.name}> "
@@ -360,6 +359,8 @@ listening_to_filter = ListeningTo()
 
 
 def main():
+    global client
+
     token = pi_bot.get_service_account_token()
 
     loop = asyncio.get_event_loop()
@@ -371,15 +372,19 @@ def main():
         )
     )
 
-    value = loop.run_until_complete(
-        client.secrets.resolve("op://Automations/WitiTestBot Telegram Token/credential")
-    )
     # value = loop.run_until_complete(
-    #     client.secrets.resolve("op://Automations/WitiBot Telegram Token/credential")
-    # )
+    #     client.secrets.resolve("op://Automations/26pi3z77cwe7squk4d6vktbpwu/credential")
+    # )  # Test Bot
+    value = loop.run_until_complete(
+        client.secrets.resolve("op://Automations/WitiBot Telegram Token/credential")
+    )  # WitiBot
 
-    openai.api_key = loop.run_until_complete(
-        client.secrets.resolve("op://Automations/OpenAI WitiBot API Key/credential")
+    client = OpenAI(
+        api_key=loop.run_until_complete(
+            client.secrets.resolve(
+                "op://Automations/n3wgbiheoenvr6w33hr5jz5zhe/credential"
+            )
+        )
     )
 
     handlers = [
